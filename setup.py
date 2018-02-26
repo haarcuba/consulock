@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 README = 'a distributed lock based on consul'
 
-requires = [ 'consol', ]
+requires = [ 'python-consul', ]
 
 setup(name='consulock',
       version='0.1.0',
