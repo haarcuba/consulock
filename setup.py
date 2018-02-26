@@ -5,7 +5,7 @@ README = 'a distributed lock based on consul'
 requires = [ 'python-consul', ]
 
 setup(name='consulock',
-      version='0.1.0',
+      version='0.1.1',
       description=README,
       long_description=README,
       url='https://github.com/haarcuba/consulock',
