@@ -4,7 +4,7 @@ class ConsulLock:
     def __init__( self, key, consulClient, *, value = None ):
         self._key = key
         self._consul = consulClient
-        self._sessionId = self._consul.session.create()
+        self._sessionId = self._consul.session.create( ttl = 3600 )
         self._value = value
         self._status = 'unlocked'
 
