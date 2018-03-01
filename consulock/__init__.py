@@ -1,4 +1,6 @@
 import time
+import contextlib
+import consul.base
 
 class ConsulLock:
     def __init__( self, key, consulClient, *, value = None ):
@@ -33,10 +35,14 @@ class ConsulLock:
 
             time.sleep( interval )
 
+    def _destroySession( self ):
+        with contextlib.suppress( consul.base.ConsulException ):
+            if self._sessionId is not None:
+                self._consul.session.destroy( self._sessionId )
+            self._sessionId = None
 
     def release( self ):
         result = self._consul.kv.put( self._key, self._value, release = self._sessionId )
-        self._consul.session.destroy( self._sessionId )
-        self._sessionId = None
+        self._destroySession()
         self._status = 'unlocked'
         return result
