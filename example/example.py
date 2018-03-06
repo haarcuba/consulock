@@ -1,4 +1,4 @@
-import consulock
+import consulock.lock
 import logging
 import random
 import time
@@ -8,7 +8,7 @@ import sys
 logging.basicConfig( format = '{} %(message)s %(created)f'.format( sys.argv[1] ), level = logging.INFO )
 
 c = consul.Consul( host='localhost' )
-l = consulock.ConsulLock( 'xxx/lockme', c, value = sys.argv[1] )
+l = consulock.lock.Lock( 'xxx/lockme', c, value = sys.argv[1] )
 
 
 result = None
