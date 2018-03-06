@@ -4,6 +4,11 @@ README = 'a distributed lock based on consul'
 
 requires = [ 'python-consul', ]
 
+tests_require = [
+    'pytest',  # includes virtualenv
+    'testix',
+    ]
+
 setup(name='consulock',
       version='0.1.4',
       description=README,
@@ -19,6 +24,7 @@ setup(name='consulock',
       include_package_data=True,
       zip_safe=False,
       extras_require={
+          'testing': tests_require,
       },
       install_requires=requires,
       entry_points={
