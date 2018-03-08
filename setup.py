@@ -1,6 +1,11 @@
 from setuptools import setup, find_packages
 
 README = 'a distributed lock based on consul'
+tests_require = [
+    'pytest',  # includes virtualenv
+    'testix',
+    ]
+
 
 requires = [ 'python-consul', ]
 
@@ -19,6 +24,7 @@ setup(name='consulock',
       include_package_data=True,
       zip_safe=False,
       extras_require={
+        'testing': tests_require,
       },
       install_requires=requires,
       entry_points={
