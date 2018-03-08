@@ -79,15 +79,6 @@ class TestConsulLock:
 
             assert tested.acquire( timeout = 9 ) == False
 
-    def test_acquire_happy_flow( self, fakeTime, key, value, sessionId ):
-        tested = self.construct( key, value )
-        with Scenario() as scenario:
-            scenario <<\
-                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId ) <<\
-                Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
-
-            assert tested.acquire() == True
-
     def test_acquire_and_release( self, fakeTime, key, value, sessionId ):
         tested = self.construct( key, value )
         with Scenario() as scenario:
