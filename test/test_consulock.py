@@ -15,10 +15,19 @@ class FakeTime:
     def time( self ):
         return self._time
 
+consulock.uuid = FakeObject( 'uuid' )
+
 class TestConsulLock:
-    def construct( self, key, value = None ):
+    def construct( self, key, token, *, value = None, priority = 0 ):
         consulClient = FakeObject( 'consulClient' )
-        return consulock.ConsulLock( key, consulClient, value = value )
+        priorityKey = self.priorityKey( key, token, priority )
+        with Scenario() as scenario:
+            scenario <<\
+                Call( 'uuid.uuid4' ).returns( token ) <<\
+                Call( 'consulClient.kv.put', priorityKey, None ).returns( True )
+            tested = consulock.ConsulLock( key, consulClient, priority = priority, value = value )
+
+        return tested
 
     @pytest.fixture
     def fakeTime( self ):
@@ -38,52 +47,83 @@ class TestConsulLock:
     def sessionId( self ):
         return str( uuid.uuid4() )
 
-    def test_acquire_happy_flow( self, fakeTime, key, value, sessionId ):
-        tested = self.construct( key, value )
+    @pytest.fixture
+    def token( self ):
+        return uuid.uuid4()
+
+    def priorityKey( self, key, token, priority ):
+        return '{key}/{token}/{priority}'.format( key = key, token = token, priority = priority )
+
+    def scanPrioritiesScenario( self, scenario, key, myPriorityKey, priorityKeys = [] ):
+        SOME_INDEX = 239432
+        priorityKeys.append( myPriorityKey )
+        scenario <<\
+            Call( 'consulClient.kv.get', key, keys = True ).returns( ( SOME_INDEX, priorityKeys ) )
+
+    def test_acquire_happy_flow( self, fakeTime, key, value, sessionId, token ):
+        tested = self.construct( key, token, value = value )
+        priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
-                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId ) <<\
+                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+
+            scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
 
             assert tested.acquire() == True
 
-    def test_acquire_after_some_retries( self, fakeTime, key, value, sessionId ):
-        tested = self.construct( key, value )
+    def test_acquire_after_some_retries( self, fakeTime, key, value, sessionId, token ):
+        tested = self.construct( key, token, value = value )
+        priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             for _ in range( 100 ):
+                self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
                 scenario <<\
                     Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                     Call( 'sleep', IgnoreArgument() )
 
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
 
             assert tested.acquire() == True
 
-    def test_acquire_fails_due_to_timeout( self, fakeTime, key, value, sessionId ):
-        tested = self.construct( key, value )
+    def test_acquire_fails_due_to_timeout( self, fakeTime, key, value, sessionId, token ):
+        tested = self.construct( key, token, value = value )
+        priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
-                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId ) <<\
+                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
-                Hook( fakeTime.set, 1 ) <<\
+                Hook( fakeTime.set, 1 )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
-                Hook( fakeTime.set, 6 ) <<\
+                Hook( fakeTime.set, 6 )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
                 Hook( fakeTime.set, 10 )
 
             assert tested.acquire( timeout = 9 ) == False
 
-    def test_acquire_and_release( self, fakeTime, key, value, sessionId ):
-        tested = self.construct( key, value )
+    def test_acquire_and_release( self, fakeTime, key, value, sessionId, token ):
+        tested = self.construct( key, token, value = value )
+        priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
-                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId ) <<\
+                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True ) <<\
                 Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' ) <<\
                 Call( 'consulClient.session.destroy', sessionId )

@@ -1,13 +1,17 @@
 import time
+import uuid
 import contextlib
 import consul.base
 
 class ConsulLock:
-    def __init__( self, key, consulClient, *, value = None ):
+    def __init__( self, key, consulClient, *, value = None, priority = 0 ):
         self._key = key
         self._consul = consulClient
         self._value = value
         self._sessionId = None
+        self._token = uuid.uuid4()
+        self._priorityKey = '{}/{}/{}'.format( key, self._token, priority )
+        self._consul.kv.put( self._priorityKey, None )
 
     @property
     def key( self ):
@@ -23,6 +27,7 @@ class ConsulLock:
                 if now - start > timeout:
                     return False
 
+            self._consul.kv.get( self._key, keys = True )
             result = self._consul.kv.put( self._key, self._value, acquire = self._sessionId )
             if result:
                 return True
