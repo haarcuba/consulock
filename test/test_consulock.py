@@ -117,6 +117,11 @@ class TestConsulLock:
 
             assert tested.acquire() == True
 
+    def deletePriorityKeyScenario( self, scenario, key, token, priority ):
+        priorityKey = self.priorityKey( key, token, priority )
+        scenario <<\
+            Call( 'consulClient.kv.delete', priorityKey ).returns( True )
+
     def test_acquire_fails_due_to_timeout( self, fakeTime, key, value, sessionId, token ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
@@ -139,6 +144,7 @@ class TestConsulLock:
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
                 Hook( fakeTime.set, 10 )
+            self.deletePriorityKeyScenario( scenario, key, token, 0 )
 
             assert tested.acquire( timeout = 9 ) == False
 
@@ -152,7 +158,9 @@ class TestConsulLock:
             self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True ) <<\
-                Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' ) <<\
+                Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' )
+            self.deletePriorityKeyScenario( scenario, key, token, 0 )
+            scenario <<\
                 Call( 'consulClient.session.destroy', sessionId )
 
             assert tested.acquire() == True

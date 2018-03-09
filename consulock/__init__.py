@@ -16,6 +16,9 @@ class ConsulLock:
     def _putPriorityKey( self ):
         self._consul.kv.put( self._priorityKey(), None )
 
+    def _deletePriorityKey( self ):
+        self._consul.kv.delete( self._priorityKey() )
+
     def _priorityKey( self ):
         return '{}/{}/{}'.format( self._key, self._token, self._priority )
 
@@ -32,6 +35,7 @@ class ConsulLock:
             now = time.time()
             if timeout:
                 if now - start > timeout:
+                    self._deletePriorityKey()
                     return False
 
             if self._shouldYield():
@@ -58,5 +62,6 @@ class ConsulLock:
 
     def release( self ):
         result = self._consul.kv.put( self._key, self._value, release = self._sessionId )
+        self._deletePriorityKey()
         self._destroySession()
         return result
