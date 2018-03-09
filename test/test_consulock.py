@@ -23,8 +23,7 @@ class TestConsulLock:
         priorityKey = self.priorityKey( key, token, priority )
         with Scenario() as scenario:
             scenario <<\
-                Call( 'uuid.uuid4' ).returns( token ) <<\
-                Call( 'consulClient.kv.put', priorityKey, None ).returns( True )
+                Call( 'uuid.uuid4' ).returns( token )
             tested = consulock.ConsulLock( key, consulClient, priority = priority, value = value )
 
         return tested
@@ -60,12 +59,19 @@ class TestConsulLock:
         scenario <<\
             Call( 'consulClient.kv.get', key, keys = True ).returns( ( SOME_INDEX, priorityKeys ) )
 
+    def putPriorityKeyScenario( self, scenario, key, token, priority ):
+        priorityKey = self.priorityKey( key, token, priority )
+        scenario <<\
+            Call( 'consulClient.kv.put', priorityKey, None ).returns( True )
+        return scenario
+
     def test_acquire_happy_flow( self, fakeTime, key, value, sessionId, token ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.putPriorityKeyScenario( scenario, key, token, 0 )
 
             self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
 
@@ -80,6 +86,7 @@ class TestConsulLock:
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.putPriorityKeyScenario( scenario, key, token, 0 )
             for _ in range( 100 ):
                 self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
                 scenario <<\
@@ -98,6 +105,7 @@ class TestConsulLock:
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.putPriorityKeyScenario( scenario, key, token, 0 )
             for _ in range( 100 ):
                 self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenA/1', '{}/tokenB/0' ] )
                 scenario <<\
@@ -115,6 +123,7 @@ class TestConsulLock:
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.putPriorityKeyScenario( scenario, key, token, 0 )
             self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
@@ -139,6 +148,7 @@ class TestConsulLock:
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            self.putPriorityKeyScenario( scenario, key, token, 0 )
             self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True ) <<\

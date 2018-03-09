@@ -12,6 +12,8 @@ class ConsulLock:
         self._sessionId = None
         self._token = uuid.uuid4()
         self._priority = priority
+
+    def _putPriorityKey( self ):
         self._consul.kv.put( self._priorityKey(), None )
 
     def _priorityKey( self ):
@@ -24,6 +26,7 @@ class ConsulLock:
     def acquire( self, *, timeout = None, interval = 1 ):
         ONE_DAY = 24 * 3600
         self._sessionId = self._consul.session.create( ttl = ONE_DAY )
+        self._putPriorityKey()
         start = time.time()
         while True:
             now = time.time()
