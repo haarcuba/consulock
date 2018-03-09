@@ -145,6 +145,8 @@ class TestConsulLock:
                 Call( 'sleep', IgnoreArgument() ) <<\
                 Hook( fakeTime.set, 10 )
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
+            scenario <<\
+                Call( 'consulClient.session.destroy', sessionId )
 
             assert tested.acquire( timeout = 9 ) == False
 
