@@ -92,6 +92,23 @@ class TestConsulLock:
 
             assert tested.acquire() == True
 
+    def test_acquire_yield_to_higher_priority( self, fakeTime, key, value, sessionId, token ):
+        tested = self.construct( key, token, value = value )
+        priorityKey = self.priorityKey( key, token, 0 )
+        with Scenario() as scenario:
+            scenario <<\
+                Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
+            for _ in range( 100 ):
+                self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenA/1', '{}/tokenB/0' ] )
+                scenario <<\
+                    Call( 'sleep', IgnoreArgument() )
+
+            self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenB/0' ] )
+            scenario <<\
+                Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
+
+            assert tested.acquire() == True
+
     def test_acquire_fails_due_to_timeout( self, fakeTime, key, value, sessionId, token ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )

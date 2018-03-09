@@ -1,4 +1,5 @@
 import time
+import logging
 import uuid
 import contextlib
 import consul.base
@@ -10,8 +11,11 @@ class ConsulLock:
         self._value = value
         self._sessionId = None
         self._token = uuid.uuid4()
-        self._priorityKey = '{}/{}/{}'.format( key, self._token, priority )
-        self._consul.kv.put( self._priorityKey, None )
+        self._priority = priority
+        self._consul.kv.put( self._priorityKey(), None )
+
+    def _priorityKey( self ):
+        return '{}/{}/{}'.format( self._key, self._token, self._priority )
 
     @property
     def key( self ):
@@ -27,12 +31,21 @@ class ConsulLock:
                 if now - start > timeout:
                     return False
 
-            self._consul.kv.get( self._key, keys = True )
+            if self._shouldYield():
+                logging.info( 'yielding to higher priority' )
+                time.sleep( interval )
+                continue
+
             result = self._consul.kv.put( self._key, self._value, acquire = self._sessionId )
             if result:
                 return True
 
             time.sleep( interval )
+
+    def _shouldYield( self ):
+        _, keys = self._consul.kv.get( self._key, keys = True )
+        higherPriority = lambda key: int( key.split( '/' )[ -1 ] ) > self._priority
+        return any( [ higherPriority( key ) for key in keys ] )
 
     def _destroySession( self ):
         with contextlib.suppress( consul.base.ConsulException ):
