@@ -20,7 +20,6 @@ consulock.uuid = FakeObject( 'uuid' )
 class TestConsulLock:
     def construct( self, key, token, *, value = None, priority = 0 ):
         consulClient = FakeObject( 'consulClient' )
-        priorityKey = self.priorityKey( key, token, priority )
         with Scenario() as scenario:
             scenario <<\
                 Call( 'uuid.uuid4' ).returns( token )
@@ -41,6 +40,11 @@ class TestConsulLock:
     @pytest.fixture( params = [ None, 'value1', 'value2' ] )
     def value( self, request ):
         return request.param
+
+    @pytest.fixture( params = ( 0, 1, 3, 5 ) )
+    def zeroPriorityKeys( self, request, key ):
+        length = request.param
+        return [ self.priorityKey( key, uuid.uuid4(), 0 ) for _ in range( length ) ]
 
     @pytest.fixture
     def sessionId( self ):
@@ -65,7 +69,7 @@ class TestConsulLock:
             Call( 'consulClient.kv.put', priorityKey, None ).returns( True )
         return scenario
 
-    def test_acquire_happy_flow( self, fakeTime, key, value, sessionId, token ):
+    def test_acquire_happy_flow( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
@@ -73,7 +77,7 @@ class TestConsulLock:
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             self.putPriorityKeyScenario( scenario, key, token, 0 )
 
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
 
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
@@ -81,7 +85,7 @@ class TestConsulLock:
 
             assert tested.acquire() == True
 
-    def test_acquire_after_some_retries( self, fakeTime, key, value, sessionId, token ):
+    def test_acquire_after_some_retries( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
@@ -89,19 +93,19 @@ class TestConsulLock:
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             self.putPriorityKeyScenario( scenario, key, token, 0 )
             for _ in range( 100 ):
-                self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+                self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
                 scenario <<\
                     Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                     Call( 'sleep', IgnoreArgument() )
 
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
 
             assert tested.acquire() == True
 
-    def test_acquire_yield_to_higher_priority( self, fakeTime, key, value, sessionId, token ):
+    def test_acquire_yield_to_higher_priority( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
@@ -109,11 +113,11 @@ class TestConsulLock:
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             self.putPriorityKeyScenario( scenario, key, token, 0 )
             for _ in range( 100 ):
-                self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenA/1', '{}/tokenB/0' ] )
+                self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenA/1'.format( key ) ] + zeroPriorityKeys )
                 scenario <<\
                     Call( 'sleep', IgnoreArgument() )
 
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenB/0' ] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
@@ -125,24 +129,24 @@ class TestConsulLock:
         scenario <<\
             Call( 'consulClient.kv.delete', priorityKey ).returns( True )
 
-    def test_acquire_fails_due_to_timeout( self, fakeTime, key, value, sessionId, token ):
+    def test_acquire_fails_due_to_timeout( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             self.putPriorityKeyScenario( scenario, key, token, 0 )
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
                 Hook( fakeTime.set, 1 )
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
                 Hook( fakeTime.set, 6 )
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( False ) <<\
                 Call( 'sleep', IgnoreArgument() ) <<\
@@ -153,14 +157,14 @@ class TestConsulLock:
 
             assert tested.acquire( timeout = 9 ) == False
 
-    def test_acquire_and_release( self, fakeTime, key, value, sessionId, token ):
+    def test_acquire_and_release( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             self.putPriorityKeyScenario( scenario, key, token, 0 )
-            self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
+            self.scanPrioritiesScenario( scenario, key, priorityKey, zeroPriorityKeys )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
