@@ -39,10 +39,11 @@ class ConsulLock:
                     return False
 
             if self._shouldYield():
-                logging.info( 'yielding to higher priority' )
+                logging.debug( 'yielding to higher priority' )
                 time.sleep( interval )
                 continue
 
+            logging.debug( 'try to get lock {} => {}'.format( self._key, self._value ) )
             result = self._consul.kv.put( self._key, self._value, acquire = self._sessionId )
             if result:
                 return True
