@@ -58,7 +58,8 @@ class ConsulLock:
 
     def _shouldYield( self ):
         _, keys = self._consul.kv.get( self._key, keys = True )
-        higherPriority = lambda key: int( key.split( '/' )[ -1 ] ) > self._priority
+        priority = lambda key: int( key.split( '/' )[ -1 ] )
+        higherPriority = lambda key: priority( key ) > self._priority
         return any( [ higherPriority( key ) for key in keys ] )
 
     def _destroySession( self ):
