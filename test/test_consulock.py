@@ -44,7 +44,7 @@ class TestConsulLock:
     @pytest.fixture( params = ( 0, 1, 3, 5 ) )
     def zeroPriorityKeys( self, request, key ):
         length = request.param
-        return [ self.priorityKey( key, uuid.uuid4(), 0 ) for _ in range( length ) ]
+        return [ key ] + [ self.priorityKey( key, uuid.uuid4(), 0 ) for _ in range( length ) ]
 
     @pytest.fixture
     def sessionId( self ):
