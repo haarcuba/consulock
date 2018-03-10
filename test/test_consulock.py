@@ -53,7 +53,7 @@ class TestConsulLock:
     def priorityKey( self, key, token, priority ):
         return '{key}/{token}/{priority}'.format( key = key, token = token, priority = priority )
 
-    def scanPrioritiesScenario( self, scenario, key, myPriorityKey, priorityKeys = [] ):
+    def scanPrioritiesScenario( self, scenario, key, myPriorityKey, priorityKeys ):
         SOME_INDEX = 239432
         priorityKeys.append( myPriorityKey )
         scenario <<\
