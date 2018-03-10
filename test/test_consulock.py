@@ -167,10 +167,11 @@ class TestConsulLock:
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
-            scenario <<\
-                Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' )
-            scenario <<\
-                Call( 'consulClient.session.destroy', sessionId )
 
             assert tested.acquire() == True
+
+            scenario <<\
+                Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' ) <<\
+                Call( 'consulClient.session.destroy', sessionId )
+
             assert tested.release() == 'whatever'
