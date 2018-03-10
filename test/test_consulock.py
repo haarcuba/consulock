@@ -38,9 +38,9 @@ class TestConsulLock:
     def key( self ):
         return random.choice( [ 'key1', 'key2', 'key3' ] )
 
-    @pytest.fixture
-    def value( self ):
-        return random.choice( [ None, 'value1', 'value2' ] )
+    @pytest.fixture( params = [ None, 'value1', 'value2' ] )
+    def value( self, request ):
+        return request.param
 
     @pytest.fixture
     def sessionId( self ):
