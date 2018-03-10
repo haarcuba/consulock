@@ -75,5 +75,6 @@ class ConsulLock:
 
     def release( self ):
         result = self._consul.kv.put( self._key, self._value, release = self._sessionId )
+        self._deletePriorityKey()
         self._destroySession()
         return result
