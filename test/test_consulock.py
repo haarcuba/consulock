@@ -77,6 +77,7 @@ class TestConsulLock:
 
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
+            self.deletePriorityKeyScenario( scenario, key, token, 0 )
 
             assert tested.acquire() == True
 
@@ -96,6 +97,7 @@ class TestConsulLock:
             self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
+            self.deletePriorityKeyScenario( scenario, key, token, 0 )
 
             assert tested.acquire() == True
 
@@ -114,6 +116,7 @@ class TestConsulLock:
             self.scanPrioritiesScenario( scenario, key, priorityKey, [ '{}/tokenB/0' ] )
             scenario <<\
                 Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
+            self.deletePriorityKeyScenario( scenario, key, token, 0 )
 
             assert tested.acquire() == True
 
@@ -159,9 +162,10 @@ class TestConsulLock:
             self.putPriorityKeyScenario( scenario, key, token, 0 )
             self.scanPrioritiesScenario( scenario, key, priorityKey, [] )
             scenario <<\
-                Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True ) <<\
-                Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' )
+                Call( 'consulClient.kv.put', key, value, acquire = sessionId ).returns( True )
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
+            scenario <<\
+                Call( 'consulClient.kv.put', key, value, release = sessionId ).returns( 'whatever' )
             scenario <<\
                 Call( 'consulClient.session.destroy', sessionId )
 

@@ -35,7 +35,8 @@ class ConsulLock:
             now = time.time()
             if timeout:
                 if now - start > timeout:
-                    self._cleanup()
+                    self._deletePriorityKey()
+                    self._destroySession()
                     return False
 
             if self._shouldYield():
@@ -46,6 +47,7 @@ class ConsulLock:
             logging.debug( 'try to get lock {} => {}'.format( self._key, self._value ) )
             result = self._consul.kv.put( self._key, self._value, acquire = self._sessionId )
             if result:
+                self._deletePriorityKey()
                 return True
 
             time.sleep( interval )
@@ -61,11 +63,7 @@ class ConsulLock:
                 self._consul.session.destroy( self._sessionId )
             self._sessionId = None
 
-    def _cleanup( self ):
-        self._deletePriorityKey()
-        self._destroySession()
-
     def release( self ):
         result = self._consul.kv.put( self._key, self._value, release = self._sessionId )
-        self._cleanup()
+        self._destroySession()
         return result
