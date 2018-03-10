@@ -32,12 +32,10 @@ class ConsulLock:
         self._putPriorityKey()
         start = time.time()
         while True:
-            now = time.time()
-            if timeout:
-                if now - start > timeout:
-                    self._deletePriorityKey()
-                    self._destroySession()
-                    return False
+            if self._timedOut( start, timeout ):
+                self._deletePriorityKey()
+                self._destroySession()
+                return False
 
             if self._shouldYield():
                 logging.debug( 'yielding to higher priority' )
@@ -51,6 +49,12 @@ class ConsulLock:
                 return True
 
             time.sleep( interval )
+
+    def _timedOut( self, start, timeout ):
+        if timeout is None:
+            return False
+        now = time.time()
+        return now - start > timeout
 
     def _shouldYield( self ):
         _, keys = self._consul.kv.get( self._key, keys = True )
