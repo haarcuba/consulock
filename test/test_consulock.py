@@ -172,6 +172,14 @@ class TestConsulLock:
 
             assert tested.acquire( timeout = 9 ) == False
 
+    def test_get_info_api( self, key, value, token  ):
+        tested = self.construct( key, token, value = value )
+        with Scenario() as scenario:
+            scenario <<\
+                Call( 'consulClient.kv.get', key ).returns( getTuple( Key = key, Session = 'some-session-uuid', Value = b'Some Value' ) )
+
+            assert tested.value() == b'Some Value'
+
     def test_acquire_and_release( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )

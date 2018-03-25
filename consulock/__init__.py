@@ -82,3 +82,7 @@ class ConsulLock:
         self._deletePriorityKey()
         self._destroySession()
         return result
+
+    def value( self ):
+        _, properties = self._consul.kv.get( self._key )
+        return properties[ 'Value' ]
