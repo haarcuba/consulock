@@ -180,6 +180,18 @@ class TestConsulLock:
 
             assert tested.value() == b'Some Value'
 
+    def test_get_info_and_locked_api_if_key_not_exist( self, key, value, token  ):
+        tested = self.construct( key, token, value = value )
+        with Scenario() as scenario:
+            scenario <<\
+                Call( 'consulClient.kv.get', key ).returns( ( 10934890, None ) )
+
+            assert tested.locked() == False
+
+            scenario <<\
+                Call( 'consulClient.kv.get', key ).returns( ( 10934890, None ) )
+            assert tested.value() is None
+
     def test_acquire_and_release( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )

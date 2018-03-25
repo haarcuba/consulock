@@ -52,6 +52,8 @@ class ConsulLock:
 
     def locked( self ):
         _, properties = self._consul.kv.get( self._key )
+        if properties is None:
+            return False
         return 'Session' in properties
 
     def _timedOut( self, start, timeout ):
@@ -85,4 +87,6 @@ class ConsulLock:
 
     def value( self ):
         _, properties = self._consul.kv.get( self._key )
+        if properties is None:
+            return None
         return properties[ 'Value' ]
