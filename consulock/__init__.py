@@ -50,6 +50,10 @@ class ConsulLock:
 
             time.sleep( interval )
 
+    def locked( self ):
+        _, properties = self._consul.kv.get( self._key )
+        return 'Session' in properties
+
     def _timedOut( self, start, timeout ):
         if timeout is None:
             return False

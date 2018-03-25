@@ -17,6 +17,9 @@ class FakeTime:
 
 consulock.uuid = FakeObject( 'uuid' )
 
+def getTuple( ** properties ):
+    return random.randint( 10000, 200000 ), properties
+
 class TestConsulLock:
     def construct( self, key, token, *, value = None, priority = 0 ):
         consulClient = FakeObject( 'consulClient' )
@@ -73,6 +76,9 @@ class TestConsulLock:
         tested = self.construct( key, token, value = value )
         priorityKey = self.priorityKey( key, token, 0 )
         with Scenario() as scenario:
+            self.queryLockScenario( scenario, key, None )
+            assert tested.locked() == False
+
             scenario <<\
                 Call( 'consulClient.session.create', ttl = IgnoreArgument() ).returns( sessionId )
             self.putPriorityKeyScenario( scenario, key, token, 0 )
@@ -84,6 +90,16 @@ class TestConsulLock:
             self.deletePriorityKeyScenario( scenario, key, token, 0 )
 
             assert tested.acquire() == True
+            self.queryLockScenario( scenario, key, sessionId )
+            assert tested.locked() == True
+
+    def queryLockScenario( self, scenario, key, sessionId ):
+        if sessionId:
+            scenario <<\
+                Call( 'consulClient.kv.get', key ).returns( getTuple( Key = key, Session = sessionId ) )
+        else:
+            scenario <<\
+                Call( 'consulClient.kv.get', key ).returns( getTuple( Key = key ) )
 
     def test_acquire_after_some_retries( self, fakeTime, key, value, sessionId, token, zeroPriorityKeys ):
         tested = self.construct( key, token, value = value )
