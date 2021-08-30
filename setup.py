@@ -7,10 +7,10 @@ tests_require = [
     ]
 
 
-requires = [ 'python-consul', ]
+requires = [ 'python-consul2', ]
 
 setup(name='consulock',
-      version='0.4.1',
+      version='0.4.2',
       description=README,
       long_description=README,
       url='https://github.com/haarcuba/consulock',
